@@ -273,11 +273,6 @@ end optohybrid_top;
 
 architecture Behavioral of optohybrid_top is
 
-    --== Global signals ==--
-
-    signal ref_clk              : std_logic;
-    signal reset                : std_logic;
-
     --== VFAT2 signals ==--
     
     signal vfat2_mclk           : std_logic; -- VFAT2 refenrece clock (should be the same as the LHC clock)
@@ -320,7 +315,6 @@ architecture Behavioral of optohybrid_top is
     signal chipid_miso          : std_logic;
     signal chipid_tri           : std_logic;
 
-    
     --== QPLL signals ==--
 
     signal qpll_ref_40MHz       : std_logic;
@@ -336,34 +330,6 @@ architecture Behavioral of optohybrid_top is
     signal temp_data_miso       : std_logic;
     signal temp_data_tri        : std_logic;
     
-    --== Wishbone signals ==--
-    
-    signal wb_clk               : std_logic;
-    
-    -- Masters
-    signal wb_m_req             : wb_req_array_t((WB_MASTERS - 1) downto 0);
-    signal wb_m_res             : wb_res_array_t((WB_MASTERS - 1) downto 0);
-    
-    alias wb_mst_gtx_req        : wb_req_array_t(2 downto 0) is wb_m_req(WB_MST_GTX_2 downto WB_MST_GTX_0);
-    alias wb_mst_gtx_res        : wb_res_array_t(2 downto 0) is wb_m_res(WB_MST_GTX_2 downto WB_MST_GTX_0);
-    alias wb_mst_thr_req        : wb_req_array_t(5 downto 0) is wb_m_req(WB_MST_THR_5 downto WB_MST_THR_0);
-    alias wb_mst_thr_res        : wb_res_array_t(5 downto 0) is wb_m_res(WB_MST_THR_5 downto WB_MST_THR_0);
-    alias wb_mst_lat_req        : wb_req_array_t(5 downto 0) is wb_m_req(WB_MST_LAT_5 downto WB_MST_LAT_0);
-    alias wb_mst_lat_res        : wb_res_array_t(5 downto 0) is wb_m_res(WB_MST_LAT_5 downto WB_MST_LAT_0);
-    
-    -- Slaves
-    signal wb_s_req             : wb_req_array_t((WB_SLAVES - 1) downto 0);
-    signal wb_s_res             : wb_res_array_t((WB_SLAVES - 1) downto 0);
-    
-    alias wb_slv_i2c_req        : wb_req_array_t(5 downto 0) is wb_s_req(WB_SLV_I2C_5 downto WB_SLV_I2C_0);
-    alias wb_slv_i2c_res        : wb_res_array_t(5 downto 0) is wb_s_res(WB_SLV_I2C_5 downto WB_SLV_I2C_0);
-    alias wb_slv_threshold_req  : wb_req_array_t(5 downto 0) is wb_s_req(WB_SLV_THRESHOLD_5 downto WB_SLV_THRESHOLD_0);
-    alias wb_slv_threshold_res  : wb_res_array_t(5 downto 0) is wb_s_res(WB_SLV_THRESHOLD_5 downto WB_SLV_THRESHOLD_0);
-    alias wb_slv_latency_req    : wb_req_array_t(5 downto 0) is wb_s_req(WB_SLV_LATENCY_5 downto WB_SLV_LATENCY_0);
-    alias wb_slv_latency_res    : wb_res_array_t(5 downto 0) is wb_s_res(WB_SLV_LATENCY_5 downto WB_SLV_LATENCY_0);
-    alias wb_slv_t1_req         : wb_req_t is wb_s_req(WB_SLV_T1);
-    alias wb_slv_t1_res         : wb_res_t is wb_s_res(WB_SLV_T1);
-    
     --== Chipscope signals ==--
     
     signal cs_clk               : std_logic; -- ChipScope clock
@@ -372,121 +338,15 @@ architecture Behavioral of optohybrid_top is
     signal cs_sync_in           : std_logic_vector(34 downto 0);
     signal cs_sync_out          : std_logic_vector(65 downto 0);
     signal cs_trig0             : std_logic_vector(31 downto 0);
-    
+       
 begin
 
-    reset <= '0';
-    vfat2_reset <= '1';
-    
-    ref_clk <= qpll_clk;
-    wb_clk <= qpll_clk;
-    vfat2_mclk <= qpll_clk;
-    
-    --=====================--
-    --== Wishbone switch ==--
-    --=====================--
-    
-    wb_switch_inst : entity work.wb_switch
-    port map(
-        wb_clk_i    => wb_clk,
-        reset_i     => reset,
-        wb_m_req_i  => wb_m_req,
-        wb_s_req_o  => wb_s_req,
-        wb_s_res_i  => wb_s_res,
-        wb_m_res_o  => wb_m_res
-    );
+    -- All the signals above are the Inputs/Outputs of the OptoHybrid that have been buffered as should be
 
-    --===================--
-    --== VFAT2 columns ==--
-    --===================--
-    
-    vfat2_colum_gen : for I in 0 to 2 generate
-    begin
-        
-        vfat2_column_inst : entity work.vfat2_column      
-        port map(        
-            ref_clk_i               => ref_clk,
-            reset_i                 => reset,
-            wb_slv_i2c_req_i        => wb_slv_i2c_req((2 * I + 1) downto (2 * I)),
-            wb_slv_i2c_res_o        => wb_slv_i2c_res((2 * I + 1) downto (2 * I)),
-            wb_slv_threshold_req_i  => wb_slv_threshold_req((2 * I + 1) downto (2 * I)),
-            wb_slv_threshold_res_o  => wb_slv_threshold_res((2 * I + 1) downto (2 * I)),
-            wb_slv_latency_req_i    => wb_slv_latency_req((2 * I + 1) downto (2 * I)),
-            wb_slv_latency_res_o    => wb_slv_latency_res((2 * I + 1) downto (2 * I)),
-            wb_mst_thr_req_o        => wb_mst_thr_req((2 * I + 1) downto (2 * I)),
-            wb_mst_thr_res_i        => wb_mst_thr_res((2 * I + 1) downto (2 * I)),
-            wb_mst_lat_req_o        => wb_mst_lat_req((2 * I + 1) downto (2 * I)),
-            wb_mst_lat_res_i        => wb_mst_lat_res((2 * I + 1) downto (2 * I)),
-            vfat2_data_out_i        => vfat2_data_out((8 * I + 7) downto (8 * I)),
-            vfat2_sbits_i           => vfat2_sbits((8 * I + 7) downto (8 * I)),
-            vfat2_scl_o             => vfat2_scl((2 * I + 1) downto (2 * I)),
-            vfat2_sda_miso_i        => vfat2_sda_miso((2 * I + 1) downto (2 * I)),
-            vfat2_sda_mosi_o        => vfat2_sda_mosi((2 * I + 1) downto (2 * I)),
-            vfat2_sda_tri_o         => vfat2_sda_tri((2 * I + 1) downto (2 * I))
-        );    
-        
-    end generate;
+    -- Signals can be connected to the ChipScope units for debug
 
-    --================--
-    --== T1 encoder ==--
-    --================--
-    
-    vfat2_t1_encoder_inst : entity work.vfat2_t1_encoder
-    port map(
-        vfat2_mclk_i    => ref_clk,
-        reset_i         => reset,
-        vfat2_t1_i      => local_t1,
-        vfat2_t1_o      => vfat2_t1_o
-    );
-
-    --============--
-    --== VFAT2s ==--
-    --============--
-    
---    vfat2_inst : entity work.vfat2
---    port map(     
---    ); 
-    
-    --=========--
-    --== ADC ==--
-    --=========--
-    
---    adc_inst : entity work.adc
---    port map(
---    );
-
-    --==========--
-    --== CDCE ==--
-    --==========--
-    
---    cdce_inst : entity work.cdce
---    port map(
---    );
-
-    --=============--
-    --== Chip ID ==--
-    --=============--
-    
---    chipid_inst : entity work.chipid
---    port map(
---    );
-
-    --==========--
-    --== QPLL ==--
-    --==========--
-    
---    qpll_inst : entity work.qpll
---    port map(
---    );
-    
-    --=================--
-    --== Temperature ==--
-    --=================--
-    
---    temp_inst : entity work.temp
---    port map(
---    );
-    
+    -- !!! Place your code here !!!
+   
     --===============--
     --== ChipScope ==--
     --===============--
@@ -513,33 +373,6 @@ begin
         clk     => cs_clk,
         trig0   => cs_trig0
     );
-    
-    --===========--
-    --== DEBUG ==--
-    --===========--
-    
-    process(qpll_clk)
-        variable s : std_logic;
-    begin
-        if (rising_edge(qpll_clk)) then
-            if (reset = '1') then
-                s := '0';
-                wb_mst_gtx_req(0).stb <= '0'; 
-            else
-                if (s = '0' and cs_sync_out(65) = '1') then
-                    wb_mst_gtx_req(0) <= (stb   => cs_sync_out(65),
-                                          we    => cs_sync_out(64),
-                                          addr  => cs_sync_out(31 downto 0),
-                                          data  => cs_sync_out(63 downto 32));
-                else
-                    wb_mst_gtx_req(0).stb <= '0'; 
-                end if;
-                s := cs_sync_out(65);
-            end if;
-        end if; 
-    end process;
-    
-    cs_sync_in <= wb_mst_gtx_res(0).ack & wb_mst_gtx_res(0).stat & wb_mst_gtx_res(0).data;
     
     --=============--
     --== Buffers ==--
