@@ -361,6 +361,18 @@ architecture Behavioral of optohybrid_top is
     signal wb_m_res             : wb_res_array_t((WB_MASTERS - 1) downto 0);
     signal wb_s_req             : wb_req_array_t((WB_SLAVES - 1) downto 0);
     signal wb_s_res             : wb_res_array_t((WB_SLAVES - 1) downto 0);
+	 
+	 --== i2c signals ==--
+	 signal en_i						: std_logic;
+	 signal address_i					: std_logic_vector(6 downto 0);
+	 signal rw_i						: std_logic;
+	 signal data_i						: std_logic_vector(7 downto 0);
+	 signal valid_o					: std_logic;
+	 signal data_o						: std_logic_vector(7 downto 0);
+	 signal error_o					: std_logic;
+	 signal sda_miso_i				: std_logic;
+	 signal sda_mosi_o				: std_logic;
+	 signal sda_tri_o					: std_logic;
     
 begin
 
@@ -571,6 +583,28 @@ begin
         sys_clk_sel_o   => sys_clk_sel,
         sys_sbit_sel_o  => sys_sbit_sel
     );
+	 
+	 --================--
+	 --== TempSensor ==--
+	 --================--
+	 
+	 i2c_inst : entity work.i2c
+	 port map(
+		ref_clk_i			=> clk_50MHz_i,
+		en_i					=> en_i,
+		reset_i				=> reset,
+		address_i			=> address_i,
+		scl_o					=> temp_clk_o,
+--		dout					=> temp_data_io,
+		rw_i					=> rw_i,
+		data_i				=> data_i,
+		valid_o				=> valid_o,
+		error_o				=> error_o,
+		data_o				=> data_o,
+		sda_miso_i			=> sda_miso_i,
+		sda_mosi_o			=> sda_mosi_o,
+		sda_tri_o			=> sda_tri_o
+		);
     
     --=============--
     --== Buffers ==--
